@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "Teams Meeting Recorder",
+  "version": "1.0",
+  "description": "Automatically records Teams meetings with audio/video.",
+  "permissions": [
+    "storage",
+    "notifications",
+    "tabs",
+    "tabCapture"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "icons": {
+    "128": "icon.png"
+  }
+}

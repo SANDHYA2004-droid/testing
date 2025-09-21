@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Teams Meeting Recorder</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-card">
+    <h2>🎬 Teams Recorder</h2>
+
+    <div class="modes">
+      <label class="mode-tile">
+        <input type="radio" name="mode" value="none">
+        <span>🎛️ Manual</span>
+      </label>
+      <label class="mode-tile">
+        <input type="radio" name="mode" value="audio">
+        <span>🎤 Audio Only</span>
+      </label>
+      <label class="mode-tile">
+        <input type="radio" name="mode" value="screen">
+        <span>🖥️ Screen Only</span>
+      </label>
+      <label class="mode-tile">
+        <input type="radio" name="mode" value="screenaudio">
+        <span>🎥 Screen and Audio</span>
+      </label>
+    </div>
+
+    <button id="save" class="btn-primary">💾 Save Mode</button>
+
+    <div id="status" class="status neutral">⚠️ Please select a mode.</div>
+
+    <div id="manualControls" class="manual">
+      <button id="manualStart" class="btn-secondary">▶ Start Recording</button>
+      <button id="manualStop" class="btn-danger" disabled>⏹ Stop Recording</button>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
