@@ -375,3 +375,11 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('startBtn').title = "Manually start recording current Zoom tab";
   document.getElementById('stopBtn').title = "Stop recording and download the video";
 });
+
+
+
+
+
+
+
+

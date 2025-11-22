@@ -1,336 +1,3 @@
-// let userPermissionGranted = false;
-// let currentRecordingTab = null;
-
-// // Load saved permission state
-// chrome.storage.local.get(['autoRecordPermission'], (result) => {
-//   userPermissionGranted = result.autoRecordPermission || false;
-//   console.log("🔐 Auto record permission:", userPermissionGranted);
-// });
-
-// // Listen for tab updates to detect Zoom pages
-// chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-//   if (changeInfo.status === "complete" && isZoomTab(tab.url)) {
-//     console.log("✅ Zoom tab detected:", tabId, tab.url);
-    
-//     // Check if user has given permission for auto recording
-//     chrome.storage.local.get(['autoRecordPermission'], (result) => {
-//       if (result.autoRecordPermission) {
-//         console.log("🎬 Auto recording enabled - Waiting for Join button click...");
-        
-//         // Wait for content script to initialize
-//         setTimeout(() => {
-//           chrome.tabs.sendMessage(tabId, { action: "checkMeetingStatus" }, (response) => {
-//             if (chrome.runtime.lastError) {
-//               console.log("⚠️ Content script not ready yet, will detect meeting when Join button is clicked");
-//               return;
-//             }
-            
-//             if (response && response.isInMeeting && !response.recording) {
-//               console.log("✅ Meeting already in progress - starting auto recording");
-//               startRecordingForTab(tabId);
-//             }
-//           });
-//         }, 3000);
-//       }
-//     });
-//   }
-// });
-
-// function isZoomTab(url) {
-//   return url && (url.includes("zoom.us") || url.includes("zoom.com"));
-// }
-
-// // Handle permission messages
-// chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-//   console.log("📨 Background received:", message.action);
-  
-//   if (message.action === "grantAutoRecordPermission") {
-//     console.log("✅ User granted auto recording permission");
-//     userPermissionGranted = true;
-//     chrome.storage.local.set({ autoRecordPermission: true }, () => {
-//       // Notify all Zoom tabs about permission change
-//       chrome.tabs.query({url: ["https://*.zoom.us/*", "https://zoom.us/*"]}, (tabs) => {
-//         tabs.forEach(tab => {
-//           chrome.tabs.sendMessage(tab.id, {
-//             action: "updateAutoRecordPermission",
-//             enabled: true
-//           });
-//         });
-//       });
-//     });
-//     sendResponse({ success: true });
-//   }
-  
-//   if (message.action === "revokeAutoRecordPermission") {
-//     console.log("❌ User revoked auto recording permission");
-//     userPermissionGranted = false;
-//     chrome.storage.local.set({ autoRecordPermission: false }, () => {
-//       // Notify all Zoom tabs about permission change
-//       chrome.tabs.query({url: ["https://*.zoom.us/*", "https://zoom.us/*"]}, (tabs) => {
-//         tabs.forEach(tab => {
-//           chrome.tabs.sendMessage(tab.id, {
-//             action: "updateAutoRecordPermission",
-//             enabled: false
-//           });
-//         });
-//       });
-//     });
-//     sendResponse({ success: true });
-//   }
-  
-//   if (message.action === "getAutoRecordPermission") {
-//     sendResponse({ permission: userPermissionGranted });
-//   }
-
-//   if (message.action === "autoStartRecording") {
-//     const timestamp = new Date().toLocaleTimeString();
-//     console.log(`🎬 Auto starting recording - Join button clicked (+3s delay completed) at ${timestamp}`);
-//     console.log("📍 Source tab:", sender.tab.id, sender.tab.url);
-    
-//     // Start recording immediately
-//     startRecordingForTab(sender.tab.id);
-    
-//     sendResponse({ success: true });
-//   }
-
-//   if (message.action === "autoStopRecording") {
-//     const timestamp = new Date().toLocaleTimeString();
-//     console.log(`🛑 Auto stopping recording - Leave button clicked (Meeting ended) at ${timestamp}`);
-//     console.log("📍 Source tab:", sender.tab.id);
-//     stopAllRecordings();
-//     sendResponse({ success: true });
-//   }
-
-//   if (message.action === "checkMeetingStatus") {
-//     chrome.tabs.sendMessage(sender.tab.id, { action: "checkMeetingStatus" }, (response) => {
-//       if (chrome.runtime.lastError) {
-//         console.log("❌ Cannot check meeting status:", chrome.runtime.lastError);
-//         sendResponse({ error: "Content script not ready" });
-//         return;
-//       }
-//       sendResponse(response);
-//     });
-//     return true;
-//   }
-
-//   if (message.action === "recordingStarted") {
-//     const timestamp = new Date().toLocaleTimeString();
-//     console.log(`✅ Recording started successfully at ${timestamp}`);
-//     console.log("📊 Recording tab:", sender.tab.id);
-//     currentRecordingTab = sender.tab.id;
-    
-//     // Update storage
-//     chrome.storage.local.set({ 
-//       isRecording: true,
-//       recordingStartTime: Date.now(),
-//       recordingTabId: sender.tab.id
-//     });
-    
-//     sendResponse({ success: true });
-//   }
-
-//   if (message.action === "recordingStopped") {
-//     const timestamp = new Date().toLocaleTimeString();
-//     console.log(`✅ Recording stopped successfully at ${timestamp}`);
-//     console.log("📊 Was recording tab:", sender.tab.id);
-//     currentRecordingTab = null;
-    
-//     // Update storage
-//     chrome.storage.local.remove(['isRecording', 'recordingTime', 'recordingStartTime', 'recordingTabId']);
-    
-//     sendResponse({ success: true });
-//   }
-
-//   if (message.action === "timerUpdate") {
-//     // Update recording time in storage
-//     chrome.storage.local.set({ recordingTime: message.time });
-    
-//     // Forward timer update to all Zoom tabs for the popup
-//     chrome.tabs.query({url: ["https://*.zoom.us/*", "https://zoom.us/*"]}, (tabs) => {
-//       tabs.forEach(tab => {
-//         chrome.tabs.sendMessage(tab.id, {
-//           action: "updateRecordingTimer",
-//           time: message.time
-//         });
-//       });
-//     });
-    
-//     sendResponse({ success: true });
-//   }
-
-//   if (message.action === "updateRecordingTimer") {
-//     // Forward timer update to all Zoom tabs for the popup
-//     chrome.tabs.query({url: ["https://*.zoom.us/*", "https://zoom.us/*"]}, (tabs) => {
-//       tabs.forEach(tab => {
-//         chrome.tabs.sendMessage(tab.id, {
-//           action: "updateRecordingTimer",
-//           time: message.time
-//         });
-//       });
-//     });
-//     sendResponse({ success: true });
-//   }
-
-//   if (message.action === "showRecordingPopup") {
-//     // Show popup in all Zoom tabs
-//     chrome.tabs.query({url: ["https://*.zoom.us/*", "https://zoom.us/*"]}, (tabs) => {
-//       tabs.forEach(tab => {
-//         chrome.tabs.sendMessage(tab.id, {
-//           action: "showRecordingPopup"
-//         });
-//       });
-//     });
-//     sendResponse({ success: true });
-//   }
-
-//   if (message.action === "hideRecordingPopup") {
-//     // Hide popup in all Zoom tabs
-//     chrome.tabs.query({url: ["https://*.zoom.us/*", "https://zoom.us/*"]}, (tabs) => {
-//       tabs.forEach(tab => {
-//         chrome.tabs.sendMessage(tab.id, {
-//           action: "hideRecordingPopup"
-//         });
-//       });
-//     });
-//     sendResponse({ success: true });
-//   }
-  
-//   return true;
-// });
-
-// function startRecordingForTab(tabId) {
-//   // Check if already recording in ANY tab (not just currentRecordingTab)
-//   chrome.storage.local.get(['isRecording'], (result) => {
-//     if (result.isRecording) {
-//       console.log("⚠️ Already recording in another tab, ignoring auto-record request");
-//       return;
-//     }
-
-//     console.log("🎬 Starting AUTO recording for Zoom tab:", tabId);
-    
-//     // Show recording popup in Zoom tab
-//     chrome.tabs.sendMessage(tabId, {
-//       action: "showRecordingPopup"
-//     });
-    
-//     // Create a new tab for recording
-//     chrome.tabs.create({
-//       url: chrome.runtime.getURL("recorder.html"),
-//       active: false
-//     }, (recorderTab) => {
-//       console.log("✅ Recorder tab opened for auto recording:", recorderTab.id);
-      
-//       const startRecording = (retryCount = 0) => {
-//         chrome.tabs.sendMessage(recorderTab.id, { 
-//           action: "startRecording", 
-//           tabId: tabId,
-//           autoRecord: true  // This flag is important
-//         }, (response) => {
-//           if (chrome.runtime.lastError) {
-//             console.log(`❌ Recorder tab not ready (attempt ${retryCount + 1}/3), retrying...`);
-//             if (retryCount < 2) {
-//               setTimeout(() => startRecording(retryCount + 1), 1000);
-//             } else {
-//               console.error("❌ Failed to start auto recording after 3 attempts");
-//               chrome.tabs.remove(recorderTab.id);
-//               chrome.tabs.sendMessage(tabId, { action: "hideRecordingPopup" });
-              
-//               // Send failure response back to content script
-//               chrome.tabs.sendMessage(tabId, {
-//                 action: "autoRecordingFailed"
-//               });
-//             }
-//           } else {
-//             console.log("✅ Auto recording started successfully");
-//             currentRecordingTab = tabId;
-//           }
-//         });
-//       };
-      
-//       // Give recorder tab more time to load
-//       setTimeout(() => startRecording(), 2000);
-//     });
-//   });
-// }
-
-// function stopAllRecordings() {
-//   console.log("🛑 Stopping all recordings");
-  
-//   // Hide recording popup in all Zoom tabs
-//   chrome.tabs.query({url: ["https://*.zoom.us/*", "https://zoom.us/*"]}, (tabs) => {
-//     tabs.forEach(tab => {
-//       chrome.tabs.sendMessage(tab.id, {
-//         action: "hideRecordingPopup"
-//       });
-//     });
-//   });
-  
-//   // Find and stop all recorder tabs
-//   chrome.tabs.query({ url: chrome.runtime.getURL("recorder.html") }, (tabs) => {
-//     if (tabs.length > 0) {
-//       console.log(`🛑 Stopping ${tabs.length} recorder tab(s)`);
-//       tabs.forEach(tab => {
-//         chrome.tabs.sendMessage(tab.id, { action: "stopRecording" });
-//       });
-//     } else {
-//       console.log("⚠️ No recorder tabs found");
-//     }
-//   });
-  
-//   currentRecordingTab = null;
-  
-//   // Clear storage
-//   chrome.storage.local.remove(['isRecording', 'recordingTime', 'recordingStartTime', 'recordingTabId']);
-// }
-
-// // Monitor tab closures
-// chrome.tabs.onRemoved.addListener((tabId) => {
-//   if (tabId === currentRecordingTab) {
-//     console.log("🛑 Recording source tab closed - stopping recording");
-//     stopAllRecordings();
-//   }
-  
-//   // Also check if it's a recorder tab
-//   chrome.tabs.get(tabId, (tab) => {
-//     if (chrome.runtime.lastError) return;
-    
-//     if (tab.url && tab.url.includes("recorder.html")) {
-//       console.log("🛑 Recorder tab closed - cleaning up");
-//       chrome.storage.local.remove(['isRecording', 'recordingTime', 'recordingStartTime', 'recordingTabId']);
-//       currentRecordingTab = null;
-//     }
-//   });
-// });
-
-// // Handle extension installation or update
-// chrome.runtime.onInstalled.addListener((details) => {
-//   console.log("🔧 Extension installed/updated:", details.reason);
-  
-//   if (details.reason === 'install') {
-//     // Set default permissions
-//     chrome.storage.local.set({ autoRecordPermission: false });
-//     console.log("🔐 Auto recording disabled by default");
-//   }
-// });
-
-// // Keep service worker alive during recordings
-// setInterval(() => {
-//   chrome.runtime.getPlatformInfo(() => {
-//     if (currentRecordingTab) {
-//       // Log keep-alive every 30 seconds during recording
-//       if (Math.floor(Date.now() / 1000) % 30 === 0) {
-//         console.log("💓 Service worker keep-alive (Recording active)");
-//       }
-//     }
-//   });
-// }, 10000);
-
-// console.log("🔧 Background script loaded successfully");
-// console.log("📋 Detection mode: Join button click (+3s delay) = Meeting Start, Leave button click = Meeting End");
-
-
-
-
 
 
 
@@ -406,9 +73,9 @@ function isZoomTab(url) {
   return url && (url.includes("zoom.us") || url.includes("zoom.com"));
 }
 
-// Handle permission messages
+// ENHANCED MESSAGE HANDLER WITH DEBUGGING
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  console.log("📨 Background received:", message.action);
+  console.log("📨 Background received:", message.action, "from tab:", sender.tab?.id);
   
   if (message.action === "grantAutoRecordPermission") {
     console.log("✅ User granted auto recording permission");
@@ -450,8 +117,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.action === "autoStartRecording") {
     const timestamp = new Date().toLocaleTimeString();
-    console.log(`🎬 Auto starting recording at ${timestamp}`);
+    console.log(`🎬 AUTO START RECORDING RECEIVED at ${timestamp}`);
     console.log("📍 Source tab:", sender.tab.id, sender.tab.url);
+    
+    // DEBUG BREAKPOINT: Check if autoStartRecording is received
+    debugger;
     
     // Start recording immediately
     startRecordingForTab(sender.tab.id);
@@ -461,20 +131,28 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.action === "autoStopRecording") {
     const timestamp = new Date().toLocaleTimeString();
-    console.log(`🛑 Auto stopping recording at ${timestamp}`);
+    console.log(`🛑 AUTO STOP RECORDING RECEIVED at ${timestamp}`);
     console.log("📍 Source tab:", sender.tab.id);
+    
+    // DEBUG BREAKPOINT: Check if autoStopRecording is received
+    debugger;
     
     // HIDE ALL UI IMMEDIATELY in all Zoom tabs
     chrome.tabs.query({url: ["https://*.zoom.us/*", "https://zoom.us/*"]}, (tabs) => {
+      console.log(`🗑️ Hiding popup in ${tabs.length} Zoom tabs`);
       tabs.forEach(tab => {
         chrome.tabs.sendMessage(tab.id, {
           action: "hideRecordingPopup"
         }, () => {
           // Ignore errors if content script isn't ready
+          if (chrome.runtime.lastError) {
+            console.log("⚠️ Could not hide popup in tab:", tab.id, chrome.runtime.lastError);
+          }
         });
       });
     });
     
+    console.log("🔄 Calling stopAllRecordings()");
     stopAllRecordings();
     sendResponse({ success: true });
   }
@@ -493,7 +171,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.action === "recordingStarted") {
     const timestamp = new Date().toLocaleTimeString();
-    console.log(`✅ Recording started successfully at ${timestamp}`);
+    console.log(`✅ RECORDING STARTED at ${timestamp}`);
     console.log("📊 Recording tab:", sender.tab.id);
     currentRecordingTab = sender.tab.id;
     recordingStartTime = Date.now();
@@ -510,7 +188,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.action === "recordingStopped") {
     const timestamp = new Date().toLocaleTimeString();
-    console.log(`✅ Recording stopped successfully at ${timestamp}`);
+    console.log(`✅ RECORDING STOPPED at ${timestamp}`);
     console.log("📊 Was recording tab:", sender.tab.id);
     
     // Calculate recording duration
@@ -653,15 +331,22 @@ function startRecordingForTab(tabId) {
 }
 
 function stopAllRecordings() {
-  console.log("🛑 Stopping all recordings");
+  console.log("🛑 STOP ALL RECORDINGS CALLED");
+  
+  // DEBUG BREAKPOINT: Check if stopAllRecordings is called
+  debugger;
   
   // Hide recording popup in all Zoom tabs
   chrome.tabs.query({url: ["https://*.zoom.us/*", "https://zoom.us/*"]}, (tabs) => {
+    console.log(`🗑️ Hiding popup in ${tabs.length} Zoom tabs`);
     tabs.forEach(tab => {
       chrome.tabs.sendMessage(tab.id, {
         action: "hideRecordingPopup"
       }, () => {
         // Ignore errors
+        if (chrome.runtime.lastError) {
+          console.log("⚠️ Could not hide popup in tab:", tab.id);
+        }
       });
     });
   });
@@ -676,6 +361,8 @@ function stopAllRecordings() {
             console.log("⚠️ Could not stop recorder tab:", chrome.runtime.lastError);
             // Force remove the tab if we can't communicate with it
             chrome.tabs.remove(tab.id);
+          } else {
+            console.log("✅ Successfully sent stop message to recorder tab:", tab.id);
           }
         });
       });
@@ -689,10 +376,13 @@ function stopAllRecordings() {
   
   // Clear storage
   chrome.storage.local.remove(['isRecording', 'recordingTime', 'recordingStartTime', 'recordingTabId']);
+  console.log("✅ Storage cleared, all recordings stopped");
 }
 
 // Monitor tab closures
 chrome.tabs.onRemoved.addListener((tabId) => {
+  console.log("🗑️ Tab closed:", tabId);
+  
   if (tabId === currentRecordingTab) {
     console.log("🛑 Recording source tab closed - stopping recording");
     stopAllRecordings();
@@ -793,3 +483,10 @@ chrome.runtime.onMessage.addListener((message) => {
 
 console.log("🔧 Background script loaded successfully");
 console.log("📋 Auto recording ready - will start/stop based on meeting detection");
+
+
+
+
+
+
+
